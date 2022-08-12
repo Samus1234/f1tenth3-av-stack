@@ -24,7 +24,7 @@ class Timer
 {
     bool clear = false;
 
-public:
+    public:
     template<typename Function>
     void setTimeout(Function function, int delay);
 
@@ -56,39 +56,40 @@ class Interrupter : public rclcpp::Node
 	key_t key = ftok("shmfile", 65);
 	int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
     int *ptr = (int*) shmat(shmid, (void*)0, 0);
+    int state;
     Timer t;
 	
 	Interrupter() : Node("Interrupter")
 	{
-        subscriber_ = this->create_subscription<std_msgs::msg::Int32>("/read_data", 1, [this](std_msgs::msg::Int32::SharedPtr msg){ msg_callback(msg); });
+        state = 0;
+        subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>("/icp/odom", 1, [this](nav_msgs::msg::Odometry::SharedPtr msg){ msg_callback(); });
         publisher_ = this->create_publisher<std_msgs::msg::Int32>("/interrupt_data", 1);
-        // timer_ = this->create_wall_timer(100ms, [this]{ timer_callback(); });
+        // timer_ = this->create_wall_timer(1ms, [this]{ timer_callback(); });
 	}
 
 	private:
 
-    void msg_callback(const std_msgs::msg::Int32::SharedPtr msg_in)
+    void msg_callback() // const nav_msgs::msg::Odometry::SharedPtr msg_in)
     {
-        // int data = msg_in.get()->data;
         int data = *(ptr + 1);
         auto drive_msg = std_msgs::msg::Int32();
-        drive_msg.data = data;
+        drive_msg.data = state;
         publisher_->publish(drive_msg);
-        t.setTimeout([&]() {*ptr = 1;}, 100000);
+        t.setTimeout([&]() {*(ptr + 1) == 0 ? *ptr = 1 : *ptr = 0}, 50000);
     }
 	
 	// void timer_callback()
 	// {
 	//  auto drive_msg = std_msgs::msg::Int32();
-	//  int *data = (int*) shmat(shmid, (void*)0, 0);
-	//  drive_msg.data = *data;
+	//  int data = *(ptr + 1);
+	//  drive_msg.data = data;
 	//  publisher_->publish(drive_msg);
 	// }
 
 	rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
-    rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subscriber_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subscriber_;
 	
-	// rclcpp::TimerBase::SharedPtr timer_;
+	rclcpp::TimerBase::SharedPtr timer_;
 };
 
 

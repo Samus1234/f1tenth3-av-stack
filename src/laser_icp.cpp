@@ -14,8 +14,7 @@
 #include "sensor_msgs/msg/joy.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "nav_msgs/msg/odometry.hpp"
-#include "message_filters/subscriber.h"
-#include "message_filters/time_synchronizer.h"
+#include "std_msgs/msg/int32.hpp"
 #include "knn.h"
 
 
@@ -161,6 +160,7 @@ VectorXf solver(MatrixXf p, MatrixXf q)
 
 MatrixXf runICP(MatrixXf p, MatrixXf q, int maxiters)
 {
+
     VectorXf x = VectorXf::Zero(3);
 
     MatrixXf T = MatrixXf::Identity(3, 3);
@@ -171,7 +171,7 @@ MatrixXf runICP(MatrixXf p, MatrixXf q, int maxiters)
 
     knncpp::KDTreeMinkowskiX<float, knncpp::EuclideanDistance<float>> kdtree(q);
 
-    kdtree.setBucketSize(10);
+    kdtree.setBucketSize(5);
 
     kdtree.setSorted(true);
 
@@ -185,6 +185,8 @@ MatrixXf runICP(MatrixXf p, MatrixXf q, int maxiters)
 
     Matrixi indices;
     MatrixXf distances;
+
+    *(ptr + 1) = 0;
 
     for (int k = 0; k < maxiters; k++)
     {
@@ -201,8 +203,6 @@ MatrixXf runICP(MatrixXf p, MatrixXf q, int maxiters)
         p_tf = transformPointCloud(p_tf, pose2tf(x));
 
         Tr = pose2tf(x) * Tr;
-
-        cout << "Data: " << *ptr << endl;
 
         if (*ptr != 0)
         {
@@ -224,16 +224,18 @@ class Laser : public rclcpp::Node
 	std::vector<int> btns;
 	bool initial;
 	MatrixXf p, q, Tr, T;
-    	Matrix3f R_3;
+    Matrix3f R_3;
 	Quaternionf q_orientation;
 	
 	public:
 	
-	Laser() : Node("Laser_control")
+	Laser() : Node("Laser_control", rclcpp::NodeOptions())
 	{
+        declare_parameter("max_iters", 40);
         initial = true;
         R_3 = Eigen::Matrix3f::Identity();
 		laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg){ process_laser(msg); });
+        iters_pub_ = this->create_publisher<std_msgs::msg::Int32>("/max_iters", 1);
         odom_pub_ = create_publisher<nav_msgs::msg::Odometry>("icp/odom", 1);
 	}
 
@@ -241,21 +243,28 @@ class Laser : public rclcpp::Node
 	
 	void process_laser(const sensor_msgs::msg::LaserScan::SharedPtr laser_in)
 	{
-	range = laser_in.get()->ranges;
-	Map<ArrayXf> r(&range[0], range.size());
+	    range = laser_in.get()->ranges;
+	    Map<ArrayXf> r(&range[0], range.size());
         r = (r.array() < 50).select(r, 0.0);
+
+        int maxiters = get_parameter("max_iters").as_int();
 
         if(initial)
         {
             q = range2pc(r);
+            VectorXf x0(3);
+            x0 << 1.380400877934362, 1.808089186966870, 1.611115223092862;
+            MatrixXf R(2, 2);
             T = Eigen::MatrixXf::Identity(3, 3);
-            Tr = Eigen::MatrixXf::Identity(3, 3);
+            // Tr = Eigen::MatrixXf::Identity(3, 3);
+            Tr = pose2tf(x0);
+
             initial = false;
         }
 
         p = range2pc(r);
 
-        T = runICP(q, p, 40);
+        T = runICP(q, p, maxiters);
 
         Tr = Tr * T;
 
@@ -265,7 +274,11 @@ class Laser : public rclcpp::Node
 
         q_orientation = R_3;
 
+        std_msgs::msg::Int32 iters;
         nav_msgs::msg::Odometry odom;
+
+        iters.data = maxiters;
+
         odom.header.frame_id = "odom";
         odom.child_frame_id = "base_link";
 
@@ -278,12 +291,14 @@ class Laser : public rclcpp::Node
         odom.pose.pose.orientation.w = q_orientation.w();
 
         odom_pub_->publish(odom);
+        iters_pub_->publish(iters);
 
 
 	}
 	
 	rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr iters_pub_;
 };
 
 int main(int argc, char * argv[])
