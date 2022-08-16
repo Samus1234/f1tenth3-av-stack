@@ -171,7 +171,18 @@ def generate_launch_description():
         executable = 'interrupt',
         name = 'interrupt_system',
         output = 'screen',
-        parameters=[LaunchConfiguration('icp_config')]
+    )
+    read_node = Node(
+        package = 'av-stack',
+        executable = 'shm_read',
+        name = 'shm_reader',
+        output = 'screen',
+    )
+    write_node = Node(
+        package = 'av-stack',
+        executable = 'shm_write',
+        name = 'shm_writer',
+        output = 'screen',
     )
     rviz_node = Node(
         package='rviz2',
@@ -187,12 +198,15 @@ def generate_launch_description():
     # ld.add_action(vesc_driver_node)
     # ld.add_action(urg_node)
     # ld.add_action(ackermann_mux_node)
-    ld.add_action(tf_publish_node)
-    ld.add_action(laser_node)
+    # ld.add_action(tf_publish_node)
+    # ld.add_action(laser_node)
     # ld.add_action(joy_teleop_node)
     # ld.add_action(nav_lifecycle_node)
     # ld.add_action(map_server_node)
-    ld.add_action(interrupter_node)
+    # ld.add_action(interrupter_node)
+
+    ld.add_action(read_node)
+    ld.add_action(write_node)
 
 
     return ld

@@ -10,6 +10,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <thread>
+#include <functional>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
@@ -20,74 +21,98 @@ using namespace Eigen;
 
 # define PI 3.14159265358979323846
 
+key_t key = ftok("/home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/src/shmfile", 65);
+int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
+int *ptr = (int*) shmat(shmid, (void*)0, 0);
+
 class Timer
 {
-    bool clear = false;
-
     public:
-    template<typename Function>
-    void setTimeout(Function function, int delay);
 
-    void stop();
+        typedef std::function<void(void)> Function;
+    
+        bool clear = false;
+
+        Timer() : beg_(clock_::now()) {}
+
+        void reset() { beg_ = clock_::now(); }
+
+        double elapsed() const { return std::chrono::duration_cast<second_>(clock_::now() - beg_).count(); }
+
+        void start(const Function &function, float delay)
+        {
+            if(clear) return;
+
+            th = std::thread([=]()
+            {
+                reset();
+
+                while (elapsed() < delay)
+                {
+                    if(clear) return;
+                }
+
+                clear = true;
+
+                function();
+            });
+
+            th.detach();
+        }
+
+    private:
+
+        typedef std::chrono::high_resolution_clock clock_;
+
+        typedef std::chrono::duration<double, std::ratio<1> > second_;
+
+        std::thread th;
+        
+        std::chrono::time_point<clock_> beg_;
 };
-
-void Timer::setTimeout(auto function, int delay)
-{
-    this->clear = false;
-    std::thread t([=]()
-    {
-        if(this->clear) return;
-        std::this_thread::sleep_for(std::chrono::microseconds(delay));
-        if(this->clear) return;
-        function();
-    });
-    t.detach();
-}
-
-void Timer::stop()
-{
-    this->clear = true;
-}
 
 class Interrupter : public rclcpp::Node
 {
 	public:
-
-	key_t key = ftok("shmfile", 65);
-	int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
-    int *ptr = (int*) shmat(shmid, (void*)0, 0);
-    int state;
+    int interrupt_time, thread_count;
+    float t_delay_;
     Timer t;
 	
 	Interrupter() : Node("Interrupter")
 	{
-        state = 0;
-        subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>("/icp/odom", 1, [this](nav_msgs::msg::Odometry::SharedPtr msg){ msg_callback(); });
+        declare_parameter("interrupt_time", 1000);
+        t_delay_ = ((float) get_parameter("interrupt_time").as_int())*1e-6;
+        thread_count = 0;
+        *ptr = 0;
+        subscriber_ = this->create_subscription<std_msgs::msg::Int32>("/icp_state", 1, [this](std_msgs::msg::Int32::SharedPtr msg){ msg_callback(msg); });
         publisher_ = this->create_publisher<std_msgs::msg::Int32>("/interrupt_data", 1);
-        // timer_ = this->create_wall_timer(1ms, [this]{ timer_callback(); });
 	}
 
 	private:
 
-    void msg_callback() // const nav_msgs::msg::Odometry::SharedPtr msg_in)
+    void msg_callback(const std_msgs::msg::Int32::SharedPtr state_msg)
     {
-        int data = *(ptr + 1);
-        auto drive_msg = std_msgs::msg::Int32();
-        drive_msg.data = state;
-        publisher_->publish(drive_msg);
-        t.setTimeout([&]() {*(ptr + 1) == 0 ? *ptr = 1 : *ptr = 0}, 50000);
+        int data_icp = state_msg.get()->data;
+
+        t.clear = true;
+
+        std_msgs::msg::Int32 rising;
+
+        t.clear = false;
+        t.start(
+            [&]()
+            {
+                *ptr ^= 1;
+                thread_count++;
+            }, t_delay_
+        );
+
+        rising.data = thread_count;
+        publisher_ -> publish(rising);
     }
-	
-	// void timer_callback()
-	// {
-	//  auto drive_msg = std_msgs::msg::Int32();
-	//  int data = *(ptr + 1);
-	//  drive_msg.data = data;
-	//  publisher_->publish(drive_msg);
-	// }
 
 	rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subscriber_;
+    rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr subscriber_;
 	
 	rclcpp::TimerBase::SharedPtr timer_;
 };

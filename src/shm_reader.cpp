@@ -22,8 +22,11 @@ class SHMRead : public rclcpp::Node
 {
 	public:
 
-	key_t key = ftok("shmfile", 65);
+	key_t key = ftok("/home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/src/shmfile", 65);
 	int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
+	int *ptr = (int*) shmat(shmid, (void*)0, 0);
+	int state;
+	bool edge_detect;
 	
 	SHMRead() : Node("SHMRead")
 	{
@@ -35,10 +38,12 @@ class SHMRead : public rclcpp::Node
 	
 	void timer_callback()
 	{
-	 auto drive_msg = std_msgs::msg::Int32();
-	 int *ptr = (int*) shmat(shmid, (void*)0, 0);
-	 drive_msg.data = *(ptr + 1);
-	 publisher_->publish(drive_msg);
+		int shr_data = *ptr;
+		auto drive_msg = std_msgs::msg::Int32();
+		edge_detect = ~state & shr_data;
+		drive_msg.data = (int) edge_detect;
+		publisher_->publish(drive_msg);
+		state = shr_data;
 	}
 
 	rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;

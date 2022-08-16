@@ -1,0 +1,6 @@
+[0.020s] Invoking command in '/home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/build/av-stack': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/schmidd/ros_ws/install/pf_test:/home/schmidd/ros_ws/install/particle_filter:/opt/ros/foxy /usr/bin/cmake --build /home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/build/av-stack -- -j8 -l8
+[0.049s] CMake Error: The current CMakeCache.txt directory /home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/build/av-stack/CMakeCache.txt is different than the directory /home/f1tenth3/f1tenth_ws/src/av-stack/build/av-stack where CMakeCache.txt was created. This may result in binaries being created in the wrong place. If you are not sure, reedit the CMakeCache.txt
+[0.064s] CMake Error: The source directory "/home/f1tenth3/f1tenth_ws/src/av-stack" does not exist.
+[0.064s] Specify --help for usage, or press the help button on the CMake GUI.
+[0.066s] make: *** [Makefile:530: cmake_check_build_system] Error 1
+[0.068s] Invoked command in '/home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/build/av-stack' returned '2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/schmidd/ros_ws/install/pf_test:/home/schmidd/ros_ws/install/particle_filter:/opt/ros/foxy /usr/bin/cmake --build /home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/build/av-stack -- -j8 -l8

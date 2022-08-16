@@ -19,9 +19,10 @@ class SHMWrite : public rclcpp::Node
 {
 	public:
 
-	key_t key = ftok("shmfile", 65);
+	key_t key = ftok("/home/schmidd/f1tenth_ws/src/f1tenth3-av-stack/src/shmfile", 65);
 	int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
-    int counter = 0;
+	int *ptr = (int*) shmat(shmid, (void*)0, 0);
+    int state = 0;
 	
 	SHMWrite() : Node("SHMWrite")
 	{
@@ -33,13 +34,12 @@ class SHMWrite : public rclcpp::Node
 	
 	void timer_callback()
 	{
-     int *ptr = (int*) shmat(shmid, (void*)0, 0);
-     *ptr = 0;
-     *(ptr + 1) = counter;
-	 auto drive_msg = std_msgs::msg::Int32();
-	 drive_msg.data = counter;
-	 publisher_->publish(drive_msg);
-     counter ++;
+		*ptr = state;
+		// *(ptr + 1) = state;
+		auto drive_msg = std_msgs::msg::Int32();
+		drive_msg.data = state;
+		publisher_->publish(drive_msg);
+		state ^= 1;
 	}
 
 	rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
