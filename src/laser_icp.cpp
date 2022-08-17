@@ -261,7 +261,7 @@ class Laser : public rclcpp::Node
 
         state ^= 1;
 
-        state_msg.data = state;
+        state_msg.data = *ptr;
 
         state_pub_->publish(state_msg);
 
