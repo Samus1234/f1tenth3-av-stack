@@ -26,7 +26,7 @@ typedef knncpp::Matrixi Matrixi;
 
 # define PI 3.14159265358979323846
 
-key_t key = ftok("shmfile", 65);
+key_t key = ftok("/home/f1tenth3/shmfile", 65);
 int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
 
 // Generic functor template
@@ -225,14 +225,17 @@ class Laser : public rclcpp::Node
 	MatrixXf p, q, Tr, T;
     	Matrix3f R_3;
 	Quaternionf q_orientation;
+	int maxiters;
 	
 	public:
 	
 	Laser() : Node("Laser_control")
 	{
+	declare_parameter("max_iters", 40);
+	maxiters = get_parameter("max_iters").as_int();
         initial = true;
         R_3 = Eigen::Matrix3f::Identity();
-		laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg){ process_laser(msg); });
+	laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg){ process_laser(msg); });
         odom_pub_ = create_publisher<nav_msgs::msg::Odometry>("icp/odom", 1);
 	}
 
@@ -254,7 +257,7 @@ class Laser : public rclcpp::Node
 
         p = range2pc(r);
 
-        T = runICP(q, p, 40);
+        T = runICP(q, p, maxiters);
 
         Tr = Tr * T;
 
@@ -281,7 +284,7 @@ class Laser : public rclcpp::Node
 
 	}
 	
-	rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 };
 

@@ -22,7 +22,7 @@ class JoyTeleop : public rclcpp::Node
 	JoyTeleop() : Node("joystick_teleop")
 	{
 		publisher_ = this->create_publisher<ackermann_msgs::msg::AckermannDriveStamped>("/drive", 1);
-		subscription_ = this->create_subscription<sensor_msgs::msg::Joy>("/joy", 1, [this](sensor_msgs::msg::Joy::SharedPtr msg){ process_joystick(msg)} );
+		subscription_ = this->create_subscription<sensor_msgs::msg::Joy>("/joy", 1, [this](sensor_msgs::msg::Joy::SharedPtr msg){ process_joystick(msg);} );
 		timer_ = this->create_wall_timer(20ms, [this]{ timer_callback(); });
 	}
 	

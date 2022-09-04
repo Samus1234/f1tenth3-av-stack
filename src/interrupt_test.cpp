@@ -52,7 +52,7 @@ class Interrupter : public rclcpp::Node
 {
 	public:
 
-	key_t key = ftok("shmfile", 65);
+	key_t key = ftok("/home/f1tenth3/shmfile", 65);
 	int shmid = shmget(key, 1024, 0666 | IPC_CREAT);
     Timer t;
 	

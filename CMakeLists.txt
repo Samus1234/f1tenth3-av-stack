@@ -28,6 +28,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(slam_toolbox REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(jlb_pid)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -52,7 +53,12 @@ ament_target_dependencies(shm_write rclcpp std_msgs sensor_msgs ackermann_msgs n
 
 add_executable(interrupt src/interrupt_test.cpp)
 ament_target_dependencies(interrupt rclcpp std_msgs sensor_msgs ackermann_msgs nav_msgs nav2_msgs Eigen3)
-# End
+
+add_executable(pid src/pid_controller.cpp)
+ament_target_dependencies(pid rclcpp std_msgs sensor_msgs ackermann_msgs nav_msgs Eigen3 jlb_pid slam_toolbox)
+
+add_executable(stanley src/stanley_controller.cpp)
+ament_target_dependencies(stanley rclcpp std_msgs sensor_msgs ackermann_msgs nav_msgs Eigen3)
 
 add_executable(tf_publish src/tf_publisher.cpp)
 ament_target_dependencies(tf_publish rclcpp nav_msgs tf2_ros geometry_msgs)
@@ -67,6 +73,8 @@ install(TARGETS
   shm_write
   tf_publish
   tf_publish_slam
+  pid
+  stanley
   interrupt
   DESTINATION lib/${PROJECT_NAME})
   
